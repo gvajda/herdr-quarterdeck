@@ -1,0 +1,31 @@
+# Only the layout, its mods, keys and settings are tracked; Herdr writes the rest.
+/*
+!/.gitignore
+!/README.md
+!/RECIPE.md
+!/SOURCES.md
+!/preview.png
+!/keys.json
+!/settings.json
+!/layouts/
+/layouts/*
+!/layouts/main-graph.json
+!/mods/
+/mods/*
+!/mods/better-alerts/
+!/mods/better-files/
+!/mods/even-better-sidebar/
+!/mods/git-graph/
+!/mods/quota-pace/
+!/mods/ray-notes/
+!/mods/system-load/
+!/mods/tabs-graph/
+
+# Rewritten by Herdr, built, cached or personal
+*.d.ts
+jsconfig.json
+.cache/
+*.error
+.DS_Store
+/mods/better-alerts/bin/
+/mods/system-load/local.json

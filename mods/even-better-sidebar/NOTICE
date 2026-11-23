@@ -1,0 +1,49 @@
+Even Better Sidebar is a modified copy of Better Sidebar 3.7.0 from
+https://github.com/munza/herdr-mods (Apache License 2.0, see LICENSE).
+
+Changes (2026-11-23): renamed; Claude Code sessions read from their transcripts on
+every machine (scan.cjs, views/claude.js) add context %, time since the last reply
+against the prompt cache, and the subagent tree (tree.js) under each agent; Claude
+terminals Herdr doesn't list as agents show too; spinners replaced by a pulsing dot;
+pinned spaces (pin beside the title) keep their slot after closing and can be dragged like
+open ones (order.js); closed ones go to Recently closed (views/places.js). Machine headers show Claude's weekly
+pace ("31% [W]") from the quota mod's shared "quota.pace:<machine>".
+
+The hourglass icons (icons/hourglass-*.svg) draw sand into the outline of Tabler
+Icons' hourglass (https://github.com/tabler/tabler-icons, MIT License,
+Copyright (c) 2020-2024 Paweł Kuna). The other added icons are from Lucide
+(https://lucide.dev, ISC License).
+
+Upstream NOTICE follows.
+
+Herdr Mods — Better Changes, Better Files, Better Sidebar, Better Tabs, Branch PR,
+and Branch Issue
+Copyright 2026 Tawsif Aqib
+
+Better Changes adapts behavior and code from Herdr Desktop's shipped Changes mod.
+Better Files adapts behavior and code from Herdr Desktop's shipped Files mod.
+Herdr Desktop is available at https://github.com/herdrdev/herdr-app and is
+licensed under the Apache License, Version 2.0.
+
+Better Sidebar adapts code from Herdr Desktop's shipped spaces and agents mods.
+Its bundled navigation and pull-request SVG icons are also adapted from
+Herdr Desktop.
+
+Better Tabs adapts Herdr Desktop's shipped tabs mod through the former Factory
+Tabs clone. Its bundled close, spinner, file, changes, and window-control SVG
+icons are adapted from Herdr Desktop as well. It adds configurable toolbar
+actions and an overflow menu.
+
+Branch PR extracts the pull-request integration originally developed in
+herdr-workflow by Tawsif Aqib, including its native UI, GitHub CLI Go bridge,
+agent actions, and tests. Its bundled UI SVG icons are adapted from Herdr
+Desktop's icon set.
+
+Better Icons bundles icons from the Material Icon Theme for VS Code, version
+5.40.0, copyright (c) 2025 Material Extensions, licensed under the MIT License
+(https://github.com/material-extensions/vscode-material-icon-theme). The
+licence text ships beside them as LICENSE-material-icon-theme.txt.
+
+This distribution adds tree/flat file lists, staging controls, reusable diff
+tabs, inline/split views, configurable typography, right-aligned space branches,
+standalone GitHub CLI pull-request status, documentation, and tests.

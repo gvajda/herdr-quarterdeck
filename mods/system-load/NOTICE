@@ -1,0 +1,5 @@
+System Load is a modified copy of the "system" mod from
+https://github.com/Lakris2407/herdr-mods (MIT License, see LICENSE).
+
+Changes: one machine can be pinned with { "machine": "<name>" } in this folder's
+local.json (not part of the repository), or a layout's props.machine.

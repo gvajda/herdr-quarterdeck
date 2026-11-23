@@ -1,0 +1,8 @@
+Quota Pace is a modified copy of the "quota" mod from
+https://github.com/Lakris2407/herdr-quota (MIT License, see LICENSE).
+
+Changes: bars drawn like ClaudeUsageBar's (used solid, the gap to pace lighter, one
+piece per day; green under pace, orange over) with "N% under/over pace" in the popup;
+reads every connected machine and publishes Claude's weekly pace per machine as
+shared "quota.pace:<machine>" (pace.js); a headless mode (props.headless) that draws
+nothing, for layouts that show the pace elsewhere (Even Better Sidebar's machine headers).

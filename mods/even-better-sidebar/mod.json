@@ -1,0 +1,14 @@
+{
+  "$schema": "./mod.schema.json",
+  "version": "3.7.0-ebs.1",
+  "place": "none",
+  "title": "Even Better Sidebar",
+  "settings": {
+    "agent_name": "title"
+  },
+  "overlay": {
+    "kind": "dialog",
+    "width": 460,
+    "height": 620
+  }
+}

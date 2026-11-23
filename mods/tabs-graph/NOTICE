@@ -1,0 +1,6 @@
+Tabs Graph is a modified copy of the "tabs" mod shipped with the Herdr app 0.1.16
+(https://github.com/herdrdev/herdr-app, Apache License 2.0, see LICENSE).
+
+Changes: Git and Notes buttons beside Files and Changes, opening the layout's
+"graph" (git-graph) and "notes" (ray-notes) panels; a key command per panel
+("cmd-g": "tabs-graph.graph" in keys.json); its own window-button icons.
