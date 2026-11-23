@@ -9,7 +9,7 @@
 !/settings.json
 !/layouts/
 /layouts/*
-!/layouts/main-graph.json
+!/layouts/quarterdeck.json
 !/mods/
 /mods/*
 !/mods/better-alerts/

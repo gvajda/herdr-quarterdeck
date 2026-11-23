@@ -1,4 +1,4 @@
-# Main Graph for Herdr
+# Quarterdeck for Herdr
 
 A Herdr desktop layout for running coding agents across machines: the Even Better Sidebar
 with Claude's weekly pace beside every machine, a tab bar with Files, Changes, Git and Notes
@@ -11,11 +11,11 @@ the status bar.
 
 Ask the agent running in Herdr:
 
-> Read ~/.config/herdr-app/AGENTS.md, then add this layout: https://github.com/gvajda/herdr-main-graph
+> Read ~/.config/herdr-app/AGENTS.md, then add this layout: https://github.com/gvajda/herdr-quarterdeck
 
-[RECIPE.md](RECIPE.md) is the brief it follows. By hand: copy `layouts/main-graph.json` and
+[RECIPE.md](RECIPE.md) is the brief it follows. By hand: copy `layouts/quarterdeck.json` and
 the folders in `mods/` into `~/.config/herdr-app/`, merge `keys.json`, then
-`herdr-app do layout.switch --name main-graph`.
+`herdr-app do layout.switch --name quarterdeck`.
 
 ## Needs
 

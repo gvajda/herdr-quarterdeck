@@ -80,7 +80,7 @@
     "cmd-right": "send:\u0005",
     "cmd-backspace": "send:\u0015"
   },
-  "layout:main-graph": {
+  "layout:quarterdeck": {
     "cmd-g": "tabs-graph.graph"
   }
 }

@@ -1,4 +1,4 @@
-# Main Graph
+# Quarterdeck
 
 A Herdr layout for directing coding agents on several machines. On the left, a sidebar of spaces
 grouped by machine, each machine header carrying Claude's weekly pace as a small bar; on top, a
@@ -6,7 +6,7 @@ tab bar with panel buttons; in the middle, the shown tab's panes as rounded card
 panel for files, changes, a git graph and notes; along the bottom, the status bar and one
 machine's CPU and RAM. Desktop notifications say when an agent needs you.
 
-<!-- ![Main Graph](preview.png) -->
+<!-- ![Quarterdeck](preview.png) -->
 
 ## What you see
 
@@ -43,12 +43,12 @@ machine's CPU and RAM. Desktop notifications say when an agent needs you.
 - **Agent status:** the sidebar shows working, blocked ("Needs you"), done and idle per agent as
   Even Better Sidebar does. `better-alerts` posts a desktop notification when an agent turns
   blocked, or done while you aren't looking at its tab; clicking it focuses that agent.
-- **Keys:** `cmd-g` toggles the Git panel (`layout:main-graph` section, `tabs-graph.graph`).
+- **Keys:** `cmd-g` toggles the Git panel (`layout:quarterdeck` section, `tabs-graph.graph`).
 - **Load bar:** follows the selected space's machine, or a pinned one (`mods/system-load/local.json`).
 
 ## Built from
 
-- Layout `layouts/main-graph.json`: root row → `sidebar` column (`brand`, `sidebar-lists` →
+- Layout `layouts/quarterdeck.json`: root row → `sidebar` column (`brand`, `sidebar-lists` →
   `spaces`, `sidebar-footer`) and `work` column (`tabs`, `work-body` row → `main` tab block and
   `panel` column → `panel-body` stack of `files`, `changes`, `graph`, `notes`; `status` row →
   `status-main`, `status-system`). Root `floating`: `better-alerts` and `quota` (`quota-pace`
