@@ -195,3 +195,49 @@ export function pickDetectEditors(baseEditors, extra, platform) {
     })),
   };
 }
+
+// UTF-8 text as base64 (Herdr's script engine has no btoa or TextEncoder).
+const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+export function base64Utf8(text) {
+  const bytes = [];
+  for (const ch of String(text)) {
+    const c = ch.codePointAt(0);
+    if (c < 0x80) bytes.push(c);
+    else if (c < 0x800) bytes.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+    else if (c < 0x10000) bytes.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+    else bytes.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+  }
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const a = bytes[i], b = bytes[i + 1], c = bytes[i + 2];
+    const n = (a << 16) | ((b ?? 0) << 8) | (c ?? 0);
+    out += B64[(n >> 18) & 63] + B64[(n >> 12) & 63] + (b === undefined ? "=" : B64[(n >> 6) & 63]) + (c === undefined ? "=" : B64[n & 63]);
+  }
+  return out;
+}
+
+// Herdr's writeTextFile writes only on this computer, so a file on another machine is saved by
+// this script there, with the same promise: written only if it still holds what was read.
+// $1 the file, $2 how many of the rest are the expected text (-1: the file must not exist yet),
+// then the expected text and the new text as base64 pieces (one argument can't be large).
+// Exit 3: the file changed. The new text replaces the file in one step, keeping its mode.
+export const REMOTE_WRITE = `f=$1; n=$2; shift 2; t="$f.herdr-write.$$"
+if [ "$n" -lt 0 ]; then [ -e "$f" ] && exit 3
+else
+  i=0; for a; do [ $i -lt $n ] && printf %s "$a"; i=$((i+1)); done | base64 -d > "$t.e" || { rm -f "$t.e"; exit 1; }
+  cmp -s "$t.e" "$f"; same=$?; rm -f "$t.e"; [ $same -eq 0 ] || exit 3
+fi
+i=0; for a; do [ $i -ge $n ] && printf %s "$a"; i=$((i+1)); done | base64 -d > "$t" || { rm -f "$t"; exit 1; }
+[ -e "$f" ] && chmod "$(stat -c %a "$f" 2>/dev/null || stat -f %Lp "$f")" "$t"
+mv -f "$t" "$f"`;
+const PIECE = 60000;
+const pieces = (text) => {
+  const b = base64Utf8(text);
+  const out = [];
+  for (let i = 0; i < b.length; i += PIECE) out.push(b.slice(i, i + PIECE));
+  return out;
+};
+export function pickRemoteWrite(path, text, expected) {
+  const old = expected === null ? [] : pieces(expected);
+  return { program: "sh", args: ["-c", REMOTE_WRITE, "remote-write", path, String(expected === null ? -1 : old.length), ...old, ...pieces(text)] };
+}

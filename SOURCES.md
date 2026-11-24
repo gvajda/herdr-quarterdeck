@@ -14,7 +14,7 @@ changed ones say how in their NOTICE.
 | system-load | [Lakris2407/herdr-mods](https://github.com/Lakris2407/herdr-mods/tree/main/quota) (`system`) | `b6fdb2f` | MIT | yes, see its NOTICE |
 | tabs-graph | Herdr's shipped `tabs` mod ([herdrdev/herdr-app](https://github.com/herdrdev/herdr-app)) | 0.1.16 | Apache-2.0 | yes, see its NOTICE |
 
-`open-ref` (`cmd-o`: open the selected path in Better Files) is written for this layout.
+`open-ref` (`cmd-o` and Cmd-click: open a path in Better Files) and the Claude Code mod `claude/path-keys` are written for this layout.
 
 The layout also uses mods that ship with Herdr: `workspace-chrome`, `workspace-status`,
 `changes` and `pane`.

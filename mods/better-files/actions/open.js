@@ -61,7 +61,10 @@ export const openMethods = {
     const others = panes()
       .filter((p) => p.mod === "better-files")
       .map((p) => p.tab);
-    this.setViewer(id, { space, file, preview, tab: null, others, at: Date.now() });
+    // A split lands in the focused tab, so it's known now. Claiming it later failed whenever the
+    // tab already held a viewer pane: "others" lists that tab, so the new one never took it.
+    const tab = split ? (focused()?.tab ?? null) : null;
+    this.setViewer(id, { space, file, preview, tab, others: others.filter((t) => t !== tab), at: Date.now() });
     const viewer = { mode: "viewer", viewer: id, space, file };
     // ponytail: split mode puts one viewer beside the terminal in the current tab
     if (split) run("pane.split", { direction: "right", mod: "better-files", props: viewer });

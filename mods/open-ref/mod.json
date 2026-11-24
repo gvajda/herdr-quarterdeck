@@ -1,9 +1,15 @@
 {
   "place": "none",
-  "title": "Open selected path",
+  "title": "Open path in Better Files",
   "overlay": {
     "kind": "popup",
     "width": 1,
     "height": 1
-  }
+  },
+  "link_handlers": [
+    {
+      "kind": "file",
+      "pattern": "."
+    }
+  ]
 }

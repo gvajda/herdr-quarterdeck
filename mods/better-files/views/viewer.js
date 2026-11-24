@@ -22,7 +22,7 @@ import {
 } from "../files/model.js";
 import { WHOLE_FILE_LINES, fenceLanguage, highlightLines, languageOf as lexerLanguage, syntaxColors, tokenizeLine } from "../syntax.js";
 import { viewerEntries } from "../actions/open.js";
-import { BUSY, pickCopyImage, pickRm } from "../files/shell.js";
+import { BUSY, pickCopyImage, pickRemoteWrite, pickRm } from "../files/shell.js";
 import { editorId, foundEditors } from "../actions/outside.js";
 import { fileIcon, isLight } from "../files/file-icons.js";
 import { TEXT, FileIcon, IconButton, Markdown, Message, MenuButton, TextButton, codeFont, codeSize } from "./ui.js";
@@ -407,7 +407,25 @@ export const viewerMethods = {
   // Editing: a local text file whose whole text was read (not a truncated huge one).
   canEdit() {
     const file = this.file;
-    return Boolean(file && !file.on && !isImage(file.path) && !this.problem && this.text !== undefined && this.whole);
+    return Boolean(file && !isImage(file.path) && !this.problem && this.text !== undefined && this.whole);
+  },
+
+  // Writes `text` only if the file still holds `expected` (null: it must not exist); throws if
+  // not, or if the write failed (`stale` tells the two apart). A file on another machine is
+  // written there by a script, since writeTextFile writes only here.
+  async saveText(file, text, expected) {
+    if (!file.on) {
+      try {
+        return await writeTextFile(file.path, text, expected);
+      } catch (e) {
+        const now = await readTextFile(file.path).catch(() => undefined);
+        throw Object.assign(new Error(String(e?.message ?? e)), { stale: now !== expected });
+      }
+    }
+    const { program, args } = pickRemoteWrite(file.path, text, expected);
+    const result = await exec(program, args, { on: file.on, timeout: 60000 });
+    if (result.code === 3) throw Object.assign(new Error("The file changed."), { stale: true });
+    if (result.code !== 0) throw Object.assign(new Error(result.stderr.trim() || `exit ${result.code}`), { stale: false });
   },
 
   // `base` is the text on disk that the editor started from or last saved; every write names it.
@@ -466,16 +484,17 @@ export const viewerMethods = {
     if (last) this.dropAfterSave = true;
     cx.spawn(async (cx) => {
       try {
-        await writeTextFile(file.path, text, base);
+        await this.saveText(file, text, base);
         this.base = text;
         if (this.file?.path === file.path) {
           this.text = text;
           this.whole = true;
         }
-      } catch {
-        // Changed on disk since `base` (an agent, another editor): ask which to keep.
-        const disk = await readTextFile(file.path).catch(() => null);
-        if (this.edit === edit) this.conflict = { disk };
+      } catch (e) {
+        // Changed on disk since `base` (an agent, another editor): ask which to keep. A write
+        // that failed for another reason says why; Keep mine tries again.
+        const disk = await readTextFile(file.path, { on: file.on }).catch(() => null);
+        if (this.edit === edit) this.conflict = e?.stale ? { disk } : { disk: base, error: e?.message ?? String(e) };
       }
       this.saving = false;
       if (this.edit === edit && this.dropAfterSave && !this.conflict) {
@@ -534,10 +553,18 @@ export const viewerMethods = {
               .flex_1()
               .min_w(0)
               .whitespace_normal()
-              .child(this.conflict.disk === null ? "The file was deleted while you were editing." : "The file changed on disk while you were editing."),
+              .child(
+                this.conflict.error
+                  ? `Couldn't save: ${this.conflict.error}`
+                  : this.conflict.disk === null
+                    ? "The file was deleted while you were editing."
+                    : "The file changed on disk while you were editing.",
+              ),
           )
-          .child(TextButton({ id: "viewer-keep-mine", label: "Keep mine", onClick: (cx) => this.resolveConflict(true, cx) }))
-          .child(TextButton({ id: "viewer-take-disk", label: this.conflict.disk === null ? "Discard mine" : "Take theirs", onClick: (cx) => this.resolveConflict(false, cx) })),
+          .child(TextButton({ id: "viewer-keep-mine", label: this.conflict.error ? "Try again" : "Keep mine", onClick: (cx) => this.resolveConflict(true, cx) }))
+          .when(!this.conflict.error, (el) =>
+            el.child(TextButton({ id: "viewer-take-disk", label: this.conflict.disk === null ? "Discard mine" : "Take theirs", onClick: (cx) => this.resolveConflict(false, cx) })),
+          ),
       );
     return view.child(Editor.new(this.edit).flex_1().min_h(0));
   },
@@ -554,7 +581,7 @@ export const viewerMethods = {
     cx.notify();
     cx.spawn(async (cx) => {
       try {
-        await writeTextFile(file.path, next, before);
+        await this.saveText(file, next, before);
       } catch {
         // Stale: show what's on disk; the next tick acts on that.
         if (this.text === next) this.text = undefined;

@@ -1,0 +1,13 @@
+{
+  "name": "quarterdeck",
+  "owner": {
+    "name": "gvajda"
+  },
+  "plugins": [
+    {
+      "name": "path-keys",
+      "source": "./path-keys",
+      "description": "Numbers the files a reply mentions; a digit in an empty prompt opens one in Herdr's Better Files viewer, on this machine or a remote one"
+    }
+  ]
+}

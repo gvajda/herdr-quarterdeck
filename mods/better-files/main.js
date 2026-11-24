@@ -16,7 +16,7 @@
 // colours: syntax.js colours the file view's code, and Better Changes has the same file.
 import { View } from "gpui-kit";
 import { InputState, ScrollHandle, TextareaState } from "gpui-base";
-import { nextCommand, props, setShared, shared, spaces, writeTextFile } from "herdr";
+import { nextCommand, props, setShared, shared, spaces, terminals } from "herdr";
 import { loadSettings, duration } from "./settings.js";
 import { followFileIcons } from "./files/file-icons.js";
 import { readMethods } from "./files/reads.js";
@@ -142,7 +142,7 @@ class BetterFiles extends View {
     this.closed = true;
     // An edit still waiting to be saved is saved now, unless the file changed under it.
     if (this.edit && !this.conflict && this.edit.value() !== this.base)
-      await writeTextFile(this.file.path, this.edit.value(), this.base).catch(() => {});
+      await this.saveText(this.file, this.edit.value(), this.base).catch(() => {});
     await this.dropCopies(
       [this.imageCopy, ...(this.markdownCopies?.values() ?? [])].filter((c) => c && !c.startsWith("mods/better-files/.cache/web-")),
     );
@@ -164,6 +164,30 @@ class BetterFiles extends View {
     if (request?.file && request.at > this.startedAt) {
       setShared("better-files.open-request", null);
       this.openFile(request.file, cx);
+    }
+    this.followOpenLabels(cx);
+  }
+
+  // A program in a terminal asks for a file by labelling its own terminal
+  // `herdr.open={"path","root"}` (Claude Code's path-keys mod does, with hc label). The label
+  // reaches Herdr from any machine, so the file opens from where that terminal runs. Labels
+  // already there when this starts are old requests: only a changed value opens.
+  followOpenLabels(cx) {
+    const seen = (this.openSeen ??= new Map());
+    const first = !this.openSeeded;
+    this.openSeeded = true;
+    for (const t of terminals()) {
+      const value = t.labels?.["herdr.open"];
+      if (!value || seen.get(t.address) === value) continue;
+      seen.set(t.address, value);
+      if (first) continue;
+      let asked = null;
+      try {
+        asked = JSON.parse(value);
+      } catch {}
+      if (!asked?.path) continue;
+      const machine = t.machine ?? (String(t.address).includes("/") ? String(t.address).split("/")[0] : null);
+      this.openFile({ path: asked.path, root: asked.root || asked.path, on: machine || null }, cx);
     }
   }
 
