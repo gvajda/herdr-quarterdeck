@@ -1,4 +1,4 @@
-// Better Files: a read-only file browser. One class plays three roles, each its own copy:
+// Better Files: a file browser whose viewer can edit. One class plays three roles, each its own copy:
 //   the sidebar        the tree, and the box for a prompt to an agent
 //   a viewer           a file in a centre tab
 //   the menu           a popup at the pointer on right-click
@@ -16,7 +16,7 @@
 // colours: syntax.js colours the file view's code, and Better Changes has the same file.
 import { View } from "gpui-kit";
 import { InputState, ScrollHandle, TextareaState } from "gpui-base";
-import { nextCommand, props, setShared, shared, spaces } from "herdr";
+import { nextCommand, props, setShared, shared, spaces, writeTextFile } from "herdr";
 import { loadSettings, duration } from "./settings.js";
 import { followFileIcons } from "./files/file-icons.js";
 import { readMethods } from "./files/reads.js";
@@ -140,6 +140,9 @@ class BetterFiles extends View {
   // they're downloaded again after a day.
   async close() {
     this.closed = true;
+    // An edit still waiting to be saved is saved now, unless the file changed under it.
+    if (this.edit && !this.conflict && this.edit.value() !== this.base)
+      await writeTextFile(this.file.path, this.edit.value(), this.base).catch(() => {});
     await this.dropCopies(
       [this.imageCopy, ...(this.markdownCopies?.values() ?? [])].filter((c) => c && !c.startsWith("mods/better-files/.cache/web-")),
     );
@@ -156,6 +159,12 @@ class BetterFiles extends View {
     }
     this.pruneViewers();
     this.syncCompose(cx);
+    // A file asked for by open-ref (cmd-o on a selected path), opened like a click in the tree.
+    const request = shared("better-files.open-request");
+    if (request?.file && request.at > this.startedAt) {
+      setShared("better-files.open-request", null);
+      this.openFile(request.file, cx);
+    }
   }
 
   render() {

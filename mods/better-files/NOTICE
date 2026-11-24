@@ -1,0 +1,10 @@
+Better Files 1.6.1 by munza (https://github.com/munza/herdr-mods), Apache-2.0.
+
+Changed in this copy:
+- views/viewer.js: an Edit mode that edits local text files in place, saves after a short
+  pause and asks "Keep mine / Take theirs" when the file changed on disk meanwhile; Markdown
+  task-list items render as checkboxes that tick the file. The viewer was read-only.
+- files/model.js: task-list items as their own preview blocks (TASK, toggleTaskLine).
+- main.js: unsaved edits are saved on close; the sidebar opens files asked for through
+  shared "better-files.open-request" (sent by the open-ref mod).
+- actions/open.js: an "open" setting (split, default, or tab) for where a file opens.

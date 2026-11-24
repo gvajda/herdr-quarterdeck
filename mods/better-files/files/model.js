@@ -152,6 +152,18 @@ export function imageLine(line, refs, folder) {
   return { bullet, items };
 }
 
+// A task-list item: `- [ ] text`, `* [x] text`, `1. [ ] text`. $1 indent, $2 the mark, $3 the text.
+export const TASK = /^(\s*)(?:[-*+]|\d+[.)])\s+\[([ xX])\]\s+(.*?)\r?$/;
+
+// The text with task-list item `line` (0-based) ticked or unticked, or null if it isn't one.
+export function toggleTaskLine(text, line) {
+  const lines = String(text ?? "").split("\n");
+  const was = lines[line];
+  if (was === undefined || !TASK.test(was)) return null;
+  lines[line] = was.replace(/^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])\]/, (_m, head, mark) => `${head}${mark === " " ? "x" : " "}]`);
+  return lines.join("\n");
+}
+
 // Markdown as blocks for the preview. Herdr's TextView draws the text, split at each heading so
 // an `#anchor` link can reach it (`anchor`), with the file's reference definitions added to
 // every piece so its reference links still resolve. Code fences become code blocks the viewer
@@ -194,7 +206,7 @@ export function markdownBlocks(text, folder) {
     anchor = null;
   };
   let code = null;
-  for (const line of source) {
+  for (const [index, line] of source.entries()) {
     if (code) {
       const closes = FENCE.exec(line);
       if (closes && closes[2][0] === code.fence[0] && closes[2].length >= code.fence.length && !closes[3].trim()) {
@@ -216,6 +228,17 @@ export function markdownBlocks(text, folder) {
       const n = seen.get(base) ?? 0;
       seen.set(base, n + 1);
       anchor = n ? `${base}-${n}` : base;
+    }
+    // Task-list items become rows with a box to tick, consecutive ones (blank lines too) in one block.
+    const task = !heading && TASK.exec(line);
+    if (task) {
+      const joins = blocks.at(-1)?.type === "tasks" && lines.every((l) => !l.trim());
+      flush();
+      const item = { line: index, checked: task[2] !== " ", depth: Math.floor(task[1].replace(/\t/g, "  ").length / 2), text: task[3] + appendix };
+      const last = blocks.at(-1);
+      if (joins) last.items.push(item);
+      else blocks.push({ type: "tasks", items: [item] });
+      continue;
     }
     const row = !heading && imageLine(line, refs, folder);
     if (row) {

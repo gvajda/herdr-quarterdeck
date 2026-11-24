@@ -38,6 +38,8 @@ the folders in `mods/` into `~/.config/herdr-app/`, merge `keys.json`, then
 - `system-load` runs one `sh` script every 3 s on the shown machine (iostat/vm_stat on macOS, /proc on Linux).
 - `better-alerts` reads an agent's screen with `hc read` when it needs you or finishes.
 - `even-better-sidebar` reads Claude Code transcripts on each machine for context and timing.
+- `open-ref` (`cmd-o`) reads the clipboard with `pbpaste` and checks the path with `sh` (`test -f`, `git rev-parse`) on the space's machine.
+- `better-files` writes a file only from its Edit mode or a ticked Markdown checkbox, and never over changes made since it read the file.
 - No mod sends anything over the network itself.
 
 ## Credits

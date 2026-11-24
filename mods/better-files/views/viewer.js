@@ -1,8 +1,10 @@
-// A file in the centre pane, read-only, following the file as it changes on disk. Editing
-// belongs in the code editor it can open.
+// A file in the centre pane, following the file as it changes on disk. Edit mode edits a local
+// text file in place and saves it a moment after typing stops; Markdown task boxes tick in the
+// preview. Every write names the text it replaces, so an agent editing the same file is never
+// overwritten: a clash asks which version to keep.
 import { div, image } from "gpui-kit";
 import { h_flex, v_flex, Editor, EditorState, Scrollbar, v_virtual_list } from "gpui-base";
-import { appHome, exec, focused, layout, panes, readTextFile, setShared, shared, theme, window } from "herdr";
+import { appHome, exec, focused, layout, panes, readTextFile, setShared, shared, theme, window, writeTextFile } from "herdr";
 import {
   baseName,
   buildRows,
@@ -15,6 +17,7 @@ import {
   parentOf,
   parseHunks,
   resolvePath,
+  toggleTaskLine,
   viewable,
 } from "../files/model.js";
 import { WHOLE_FILE_LINES, fenceLanguage, highlightLines, languageOf as lexerLanguage, syntaxColors, tokenizeLine } from "../syntax.js";
@@ -46,6 +49,7 @@ type=$(curl -fsSL --max-time 20 --max-filesize 5000000 -o "$t" -w '%{content_typ
 case "$type" in *svg*) e=svg;; *png*) e=png;; *jpeg*|*jpg*) e=jpg;; *gif*) e=gif;; *webp*) e=webp;; *) exit 1;; esac
 mv -f -- "$t" "$2.$e" && printf %s "$2.$e"`;
 const COPIED_MS = 1500;
+const SAVE_MS = 600; // Quiet time after typing before an edit is saved.
 
 // A short, stable name for a web address, so the same badge is one file in the cache.
 const webName = (url) => {
@@ -108,6 +112,7 @@ export const viewerMethods = {
     const file = this.viewerEntry()?.file ?? this.viewerFile;
     if (!file) return;
     if (file.path !== this.file?.path) {
+      this.leaveEdit(cx, true);
       this.file = file;
       this.text = undefined;
       this.problem = null;
@@ -155,9 +160,10 @@ export const viewerMethods = {
     if (!file || this.reading) return;
     this.reading = true;
     cx.spawn(async (cx) => {
-      let shown;
+      let shown, raw;
       try {
-        shown = viewable(await readTextFile(file.path, { on: file.on }));
+        raw = await readTextFile(file.path, { on: file.on });
+        shown = viewable(raw);
       } catch {
         shown = { problem: "This file can't be shown: it's too large, or can't be read." };
       }
@@ -171,6 +177,8 @@ export const viewerMethods = {
       } else if (shown.text !== this.text) {
         this.problem = null;
         this.text = shown.text;
+        this.whole = shown.text === raw;
+        this.followDisk(shown.text);
         if (!this.gutterOn) {
           if (this.code) this.code.set_value(shown.text);
           else this.code = this.newCode(file, shown.text);
@@ -181,11 +189,12 @@ export const viewerMethods = {
     });
   },
 
-  newCode(file, value) {
+  newCode(file, value, editable = false) {
     const t = theme();
     return EditorState.new({
       language: languageOf(file.path),
-      readonly: true,
+      readonly: !editable,
+      soft_wrap: editable && isMarkdown(file.path),
       value,
       font_family: codeFont(),
       font_size: codeSize(),
@@ -395,6 +404,223 @@ export const viewerMethods = {
       );
   },
 
+  // Editing: a local text file whose whole text was read (not a truncated huge one).
+  canEdit() {
+    const file = this.file;
+    return Boolean(file && !file.on && !isImage(file.path) && !this.problem && this.text !== undefined && this.whole);
+  },
+
+  // `base` is the text on disk that the editor started from or last saved; every write names it.
+  startEdit(cx) {
+    if (!this.canEdit()) return;
+    if (!this.edit) {
+      this.base = this.text;
+      this.edit = this.newCode(this.file, this.text, true);
+      this.edit.on("change", (_e, cx) => this.queueSave(cx));
+    }
+    this.editing = true;
+    this.edit.focus();
+    cx.notify();
+  },
+
+  dirty() {
+    return Boolean(this.edit) && this.edit.value() !== this.base;
+  },
+
+  // Out of edit mode (or onto another file): unsaved text is saved first. A clash keeps you in.
+  leaveEdit(cx, now = false) {
+    if (!this.edit) return true;
+    if (this.conflict && !now) return false;
+    this.editing = false;
+    if (this.dirty() && !this.conflict) this.saveEdit(cx, true);
+    else this.dropEditor();
+    cx.notify();
+    return true;
+  },
+
+  dropEditor() {
+    this.edit?.release();
+    this.edit = null;
+    this.conflict = null;
+    this.saveToken = (this.saveToken ?? 0) + 1;
+  },
+
+  queueSave(cx) {
+    const token = (this.saveToken = (this.saveToken ?? 0) + 1);
+    cx.notify();
+    cx.timer.after(SAVE_MS, (cx) => {
+      if (token === this.saveToken) this.saveEdit(cx);
+    });
+  },
+
+  // `last`: the editor goes once this is saved (leaving edit mode, or another file).
+  saveEdit(cx, last = false) {
+    const edit = this.edit;
+    if (!edit || this.conflict) return;
+    if (this.saving) return void (last && (this.dropAfterSave = true));
+    const file = this.file;
+    const text = edit.value();
+    const base = this.base;
+    if (text === base) return void (last && this.dropEditor());
+    this.saving = true;
+    if (last) this.dropAfterSave = true;
+    cx.spawn(async (cx) => {
+      try {
+        await writeTextFile(file.path, text, base);
+        this.base = text;
+        if (this.file?.path === file.path) {
+          this.text = text;
+          this.whole = true;
+        }
+      } catch {
+        // Changed on disk since `base` (an agent, another editor): ask which to keep.
+        const disk = await readTextFile(file.path).catch(() => null);
+        if (this.edit === edit) this.conflict = { disk };
+      }
+      this.saving = false;
+      if (this.edit === edit && this.dropAfterSave && !this.conflict) {
+        this.dropAfterSave = false;
+        if (this.dirty()) this.saveEdit(cx, true);
+        else this.dropEditor();
+      } else if (this.edit === edit && this.dirty() && !this.conflict) this.queueSave(cx);
+      cx.notify();
+    });
+  },
+
+  // The file changed on disk while editing: with nothing unsaved the editor follows it,
+  // keeping the cursor; with unsaved text it's a clash.
+  followDisk(disk) {
+    const edit = this.edit;
+    if (!edit || this.saving || disk === this.base) return;
+    if (!this.dirty()) {
+      const at = edit.selected_range();
+      this.base = disk;
+      edit.set_value(disk);
+      const clamp = (n) => Math.min(n, disk.length);
+      edit.set_selected_range({ start: clamp(at.start), end: clamp(at.end) });
+    } else this.conflict = { disk };
+  },
+
+  // Keep mine: write it over what's there now. Take theirs: the editor shows the disk's.
+  resolveConflict(keepMine, cx) {
+    const { disk } = this.conflict ?? {};
+    if (!this.edit || disk === undefined) return;
+    this.conflict = null;
+    this.base = disk;
+    if (keepMine) this.saveEdit(cx);
+    else if (disk === null) this.dropEditor();
+    else this.edit.set_value(disk);
+    cx.notify();
+  },
+
+  editView() {
+    const t = theme();
+    const view = v_flex().id("viewer-edit").flex_1().min_h(0).min_w(0);
+    if (this.conflict)
+      view.child(
+        h_flex()
+          .id("viewer-conflict")
+          .flex_none()
+          .px(10)
+          .py(6)
+          .gap(8)
+          .items_center()
+          .bg(`${t.blocked.slice(0, 7)}26`)
+          .border_b(1)
+          .border_color(t.border)
+          .text_size(TEXT.small)
+          .child(
+            div()
+              .flex_1()
+              .min_w(0)
+              .whitespace_normal()
+              .child(this.conflict.disk === null ? "The file was deleted while you were editing." : "The file changed on disk while you were editing."),
+          )
+          .child(TextButton({ id: "viewer-keep-mine", label: "Keep mine", onClick: (cx) => this.resolveConflict(true, cx) }))
+          .child(TextButton({ id: "viewer-take-disk", label: this.conflict.disk === null ? "Discard mine" : "Take theirs", onClick: (cx) => this.resolveConflict(false, cx) })),
+      );
+    return view.child(Editor.new(this.edit).flex_1().min_h(0));
+  },
+
+  // A tick in the preview writes the file, if nothing changed it since it was read.
+  toggleTask(line, cx) {
+    const file = this.file;
+    if (!this.canEdit() || this.ticking) return;
+    const before = this.text;
+    const next = toggleTaskLine(before, line);
+    if (next === null) return;
+    this.ticking = true;
+    this.text = next;
+    cx.notify();
+    cx.spawn(async (cx) => {
+      try {
+        await writeTextFile(file.path, next, before);
+      } catch {
+        // Stale: show what's on disk; the next tick acts on that.
+        if (this.text === next) this.text = undefined;
+        this.readFile(cx);
+      }
+      this.ticking = false;
+      cx.notify();
+    });
+  },
+
+  previewTasks(block, i) {
+    const t = theme();
+    const editable = this.canEdit();
+    return v_flex()
+      .id(`viewer-tasks-${i}`)
+      .w_full()
+      .min_w(0)
+      .flex_none()
+      .gap(4)
+      .children(
+        block.items.map((item) =>
+          h_flex()
+            .id(`viewer-task-${i}-${item.line}`)
+            .w_full()
+            .min_w(0)
+            .gap(8)
+            .items_start()
+            .pl(item.depth * 20)
+            .child(
+              div()
+                .id(`viewer-task-box-${item.line}`)
+                .mt(2)
+                .w(15)
+                .h(15)
+                .flex_none()
+                .rounded(4)
+                .border_1()
+                .border_color(item.checked ? t.accent : t.input)
+                .when(item.checked, (el) => el.bg(t.accent))
+                .flex()
+                .items_center()
+                .justify_center()
+                .text_size(11)
+                .text_color(t.accent_foreground)
+                .child(item.checked ? "✓" : "")
+                .when(editable, (el) =>
+                  el
+                    .cursor_pointer()
+                    .hover((s) => s.border_color(t.accent))
+                    .on_click((_e, cx) => {
+                      cx.stop_propagation();
+                      this.toggleTask(item.line, cx);
+                    }),
+                ),
+            )
+            .child(
+              div()
+                .flex_1()
+                .min_w(0)
+                .when(item.checked, (el) => el.text_color(t.muted).line_through())
+                .child(Markdown(`viewer-task-md-${this.viewerId}-${item.line}`, item.text).on_link_click((url, cx) => this.followLink(url, cx))),
+            ),
+        ),
+      );
+  },
+
   // Removes copies this tab made, given as paths under Herdr's folder.
   async dropCopies(copies) {
     if (!copies.length) return;
@@ -450,7 +676,7 @@ export const viewerMethods = {
   },
 
   showsPreview() {
-    return Boolean(this.file && isMarkdown(this.file.path)) && this.markdownView() === "preview";
+    return !this.editing && Boolean(this.file && isMarkdown(this.file.path)) && this.markdownView() === "preview";
   },
 
   // Split once per version of the file, like the code view's lines.
@@ -687,6 +913,8 @@ export const viewerMethods = {
               ? this.previewImages(block, i)
               : block.type === "code"
                 ? this.previewCode(block, i)
+                : block.type === "tasks"
+                  ? this.previewTasks(block, i)
                 : Markdown(`viewer-md-${this.viewerId}-${i}`, block.text).on_link_click((url, cx) => this.followLink(url, cx)),
         ),
       );
@@ -699,11 +927,16 @@ export const viewerMethods = {
     const markdown = Boolean(file && isMarkdown(file.path));
     const previewing = this.showsPreview();
     const showView = (view) => (cx) => {
+      if (!this.leaveEdit(cx)) return;
       this.setViewer(this.viewerId, { markdown: view });
       cx.notify();
     };
+    const editing = Boolean(this.editing);
+    const editable = this.canEdit() || editing;
+    // A dot while typing is waiting to be saved.
+    const editLabel = editing && (this.dirty() || this.saving) ? "Edit •" : "Edit";
     // Only changes that replaced something have old lines to show.
-    const openable = this.gutterOn && !previewing ? (this.hunks ?? []).filter((hunk) => hunk.old.length).map(hunkKey) : [];
+    const openable = this.gutterOn && !previewing && !this.editing ? (this.hunks ?? []).filter((hunk) => hunk.old.length).map(hunkKey) : [];
     const allOpen = openable.length > 0 && openable.every((key) => this.openHunks.has(key));
     return h_flex()
       .id("viewer-actions")
@@ -715,7 +948,20 @@ export const viewerMethods = {
             .id("viewer-view")
             .gap(2)
             .child(TextButton({ id: "viewer-view-preview", label: "Preview", active: previewing, onClick: showView("preview") }))
-            .child(TextButton({ id: "viewer-view-code", label: "Code", active: !previewing, onClick: showView("code") })),
+            .child(TextButton({ id: "viewer-view-code", label: "Code", active: !previewing && !editing, onClick: showView("code") }))
+            .when(editable, (el) =>
+              el.child(TextButton({ id: "viewer-view-edit", label: editLabel, active: editing, onClick: (cx) => this.startEdit(cx) })),
+            ),
+        ),
+      )
+      .when(!markdown && editable, (el) =>
+        el.child(
+          TextButton({
+            id: "viewer-edit-toggle",
+            label: editLabel,
+            active: editing,
+            onClick: (cx) => (editing ? this.leaveEdit(cx) : this.startEdit(cx)),
+          }),
         ),
       )
       .when(openable.length > 0, (el) =>
@@ -794,6 +1040,7 @@ export const viewerMethods = {
       );
     if (this.file && isImage(this.file.path)) root.child(this.imageView());
     else if (this.problem) root.child(Message(this.problem));
+    else if (this.editing && this.edit) root.child(this.editView());
     else if (this.text === undefined) root.child(Message(head ? "Loading…" : "This tab has no file."));
     else if (this.showsPreview()) root.child(this.previewView());
     else if (this.gutterOn) root.child(this.linesView());
