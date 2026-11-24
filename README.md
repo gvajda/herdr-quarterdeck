@@ -17,6 +17,15 @@ Ask the agent running in Herdr:
 the folders in `mods/` into `~/.config/herdr-app/`, merge `keys.json`, then
 `herdr-app do layout.switch --name quarterdeck`.
 
+**Recommended for Claude Code:** merge [`claude/permissions.json`](claude/permissions.json) into
+`~/.claude/settings.json` (append to `permissions.allow` and `permissions.ask`). It lets an agent
+run the read-only and mod-development commands (`herdr-app check`, `status`, `shot`, `hc ls`,
+`hc read`, a few `herdr-app do` layout commands) without a prompt. It keeps asking for anything
+that runs code or types into terminals, here or on another machine (`hc run`, `hc exec`,
+`hc send`, `hc file`, other `herdr-app do` commands, `hc machine add`). Remove any broader
+`Bash(hc *)` or `Bash(herdr-app *)` ask rule first, since ask rules beat allow rules.
+`herdr-app check` runs a mod's `init()`, so read a mod before checking it.
+
 ## Needs
 
 - [`quota-axi`](https://github.com/kunchenguid/quota-axi) on every machine whose quota you

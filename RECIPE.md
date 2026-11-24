@@ -67,6 +67,7 @@ machine's CPU and RAM. Desktop notifications say when an agent needs you.
   `herdr-app status` after every change.
 - quota-axi on macOS can't read Claude's Keychain login until `quota-axi --allow-keychain-prompt`
   is run once. Its windows carry no `windowSeconds`; pace comes from `reservePercentPoints`.
+- Offer the person [`claude/permissions.json`](claude/permissions.json): merged into `~/.claude/settings.json` (with their permission), it allows read-only and mod-development `hc` / `herdr-app` commands and keeps asking for ones that run code or reach other machines. An existing broad `Bash(hc *)` / `Bash(herdr-app *)` ask rule overrides it and must go.
 - A global npm install on a Linux box with system Node fails with EACCES; use `--prefix ~/.local`.
 - The quota mod must stay in the layout (as the headless floating block) or nothing refreshes.
 - A disconnected machine shows its state instead of `+`, which can shift its widget a little.
