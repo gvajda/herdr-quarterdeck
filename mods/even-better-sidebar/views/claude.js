@@ -4,7 +4,7 @@
 // that doesn't see Claude's status, as on a remote machine), so they still show.
 import { div } from "gpui-kit";
 import { h_flex, v_flex } from "gpui-base";
-import { MONO } from "./ui.js";
+import { mono } from "./ui.js";
 import { agents, panes, spaces, machines, focused, exec, readTextFile, appHome } from "herdr";
 
 const SCAN_MS = 3000;
@@ -135,7 +135,7 @@ export function calendar(ms) {
 // Context used: green, yellow from 50%, red from 80%; hover for the tokens ("178k tokens").
 export function percentChip(t, pct, size, used = null) {
   const color = pct >= 80 ? t.ansi1 : pct >= 50 ? t.ansi3 : green(t);
-  return div().flex_none().font_family(MONO).text_size(size).text_color(color)
+  return div().flex_none().font_family(mono()).text_size(size).text_color(color)
     .when(used !== null, (el) => el.tooltip(`${Math.round(used / 1000)}k tokens`))
     .child(`${pct}%`);
 }
@@ -158,7 +158,7 @@ export function replyAge(t, cs, size, working, iconOf) {
   const color = cold ? (t.ansi4 ?? t.dim) : ending ? t.ansi1 : ORANGE;
   return h_flex().flex_none().gap(4).items_center().tooltip(tip)
     // 48px holds the widest value ("59m59s", "99d23h") right-aligned; max_w keeps it from growing.
-    .child(div().w(48).max_w(48).flex_none().overflow_hidden().text_right().whitespace_nowrap().font_family(MONO).text_size(size)
+    .child(div().w(48).max_w(48).flex_none().overflow_hidden().text_right().whitespace_nowrap().font_family(mono()).text_size(size)
       .text_color(working ? t.dim : color).child(ago(age)))
     // Then the glass, in its own column (empty while working) so every row lines up.
     .child(h_flex().w(11).flex_none().when(!working, (el) =>

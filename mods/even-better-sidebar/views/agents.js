@@ -21,7 +21,7 @@ import {
 import { findNode } from "./find-node.js";
 import { loadSettings } from "../settings.js";
 import { DEFAULT_SETTINGS } from "../defaults.js";
-import { TEXT, MONO, Icon, IconButton, GroupHeader, Menu, MenuLabel, MenuOption } from "./ui.js";
+import { TEXT, mono, Icon, IconButton, GroupHeader, Menu, MenuLabel, MenuOption } from "./ui.js";
 import { watchClaude, sessionFor, allAgents, claudeStatus, contextPercent, modelName, ago, percentChip, replyAge, stateDot, stateCircle, guides } from "./claude.js";
 import { build, rows as subRows } from "../tree.js";
 
@@ -626,7 +626,7 @@ export class Agents {
         el.child(
           div()
             .flex_none()
-            .font_family(MONO)
+            .font_family(mono())
             .text_size(TEXT.caption)
             .text_color(t.dim)
             .tooltip("time in this state")
@@ -677,7 +677,7 @@ export class Agents {
     // `w`: a fixed width for a value that ticks, so what follows it stays put.
     const chip = (iconName, text, tip, w = null) =>
       h_flex().flex_none().gap(3).items_center().tooltip(tip).child(Icon(iconName, 11))
-        .child(div().font_family(MONO).whitespace_nowrap().when(w !== null, (el) => el.w(w).max_w(w).overflow_hidden()).child(text));
+        .child(div().font_family(mono()).whitespace_nowrap().when(w !== null, (el) => el.w(w).max_w(w).overflow_hidden()).child(text));
     const parts = [
       // The model shortens first when the line runs out of room.
       model && div().min_w(0).truncate().tooltip(s.reqModel ?? s.model ?? "").child(model),
@@ -753,7 +753,7 @@ export class Agents {
       // Fixed, right-aligned columns like the cache time's: "100%" and "99d23h" fit.
       .child(div().w(30).max_w(30).flex_none().overflow_hidden().flex().justify_end()
         .when(pct !== null, (el) => el.child(percentChip(t, pct, TEXT.badge, s.ctx).whitespace_nowrap())))
-      .child(div().w(44).max_w(44).flex_none().overflow_hidden().text_right().whitespace_nowrap().font_family(MONO).text_size(TEXT.badge)
+      .child(div().w(44).max_w(44).flex_none().overflow_hidden().text_right().whitespace_nowrap().font_family(mono()).text_size(TEXT.badge)
         .text_color(t.dim).tooltip(s.active ? "running for" : "ran for").child(ago(took)))
       // The same column as the main agent's circle (mx centers the smaller one under it).
       .child(div().w(9).flex().justify_center().child(stateCircle(t, s.state === "done" ? "finished" : s.state, 6)));

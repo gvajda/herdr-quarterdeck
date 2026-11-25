@@ -3,7 +3,7 @@
 // Herdr commands. Components return ordinary elements, so callers can chain.
 import { div, svg } from "gpui-kit";
 import { h_flex, v_flex, Popover } from "gpui-base";
-import { theme } from "herdr";
+import { theme, settings, fonts } from "herdr";
 
 // Plain px: Herdr scales a mod's sizes by zoom itself.
 export const TEXT = {
@@ -17,8 +17,13 @@ export const TEXT = {
 };
 const RADIUS = { small: 4, control: 6, row: 7 };
 // Numbers that tick (durations, percents, counts): every digit one width, so they don't jiggle.
-// Geist Mono ships with Herdr and matches Geist; gpui-kit has no font features for tabular figures.
-export const MONO = "Geist Mono";
+// The terminal font (settings.json `font`), else Geist Mono, which ships with Herdr.
+// gpui-kit has no font features for tabular figures, so a monospace face does it.
+// A font missing on this machine (a shared settings.json) falls back too.
+export const mono = () => {
+  const f = settings().font_family;
+  return typeof f === "string" && fonts().includes(f) ? f : "Geist Mono";
+};
 export const SIZE = { group: 30, menu: 31, row: 28, icon: 26, iconSmall: 20 };
 
 export const Icon = (name, size = 14) =>

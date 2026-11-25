@@ -39,7 +39,7 @@ that runs code or types into terminals, here or on another machine (`hc run`, `h
 - **Pin the load bar to one machine:** `{ "machine": "<name>" }` in
   `mods/system-load/local.json`. Without it the bar follows the selected space.
 - **Quota details:** click the pace bar in a machine header.
-- `settings.json` uses the font Illinois Mono; Herdr falls back to JetBrains Mono without it.
+- `settings.json` uses the font Illinois Mono for terminals and the sidebar's numbers, and Lexend for the other panels. Without Illinois Mono, terminals fall back to JetBrains Mono and the sidebar's numbers to Geist Mono; without Lexend, install it or remove `ui_font`.
 
 ## What runs
 
