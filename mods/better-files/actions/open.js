@@ -55,7 +55,8 @@ export const openMethods = {
     if (live.length !== Object.keys(entries).length) setShared(VIEWERS, Object.fromEntries(live));
   },
 
-  newViewer(file, space, preview, split = false) {
+  // `split`: false for a tab of its own, else the pane.split args (direction, pane).
+  newViewer(file, space, preview, split = null) {
     const id = `v${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     // Tabs that aren't this one, so it can tell its own when it opens.
     const others = panes()
@@ -66,8 +67,7 @@ export const openMethods = {
     const tab = split ? (focused()?.tab ?? null) : null;
     this.setViewer(id, { space, file, preview, tab, others: others.filter((t) => t !== tab), at: Date.now() });
     const viewer = { mode: "viewer", viewer: id, space, file };
-    // ponytail: split mode puts one viewer beside the terminal in the current tab
-    if (split) run("pane.split", { direction: "right", mod: "better-files", props: viewer });
+    if (split) run("pane.split", { ...split, mod: "better-files", props: viewer });
     else run("tab.new", {
       space,
       name: baseName(file.path),
@@ -83,11 +83,12 @@ export const openMethods = {
     if (!space) return;
     const viewers = this.liveViewers(space);
     if (this.openSplit) {
-      // A viewer pane already in this tab shows the file; otherwise one splits in beside.
+      // Each file gets its own viewer pane: the first splits in beside the terminal, later
+      // ones stack below the last viewer. A file already open in this tab isn't opened twice.
       const tab = focused()?.tab;
-      const here = viewers.find(([, entry]) => entry.tab && entry.tab === tab);
-      if (here) this.setViewer(here[0], { file });
-      else this.newViewer(file, space, false, true);
+      if (viewers.some(([, entry]) => entry.tab === tab && entry.file?.path === file.path)) return cx?.notify();
+      const last = panes().filter((p) => p.tab === tab && p.mod === "better-files").at(-1);
+      this.newViewer(file, space, false, last ? { direction: "down", pane: last.pane } : { direction: "right" });
       cx?.notify();
       return;
     }
