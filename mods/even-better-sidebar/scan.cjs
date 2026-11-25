@@ -173,14 +173,15 @@ function subagents(file) {
     const f = path.join(dir, `agent-${id}.jsonl`);
     let st = null;
     try { st = fs.statSync(f); } catch {}
-    // ponytail: a 256 KB tail; a last turn buried under a bigger tool result shows no ctx.
+    // A 256 KB tail; a tool result bigger than that hides the last turn until the next one,
+    // so the turn seen before stays meanwhile (as the session's own does).
     const seen = cache.subs?.[f];
     let info = seen && st && seen.size === st.size ? seen : null;
     if (!info && st) {
       let text = "";
       try { text = tail(f, st.size, 256 * 1024); } catch {}
       const turn = lastTurn(text);
-      info = { size: st.size, ctx: turn?.ctx ?? null, model: turn?.model ?? null, stamp: lastStamp(text), act: activity(text, st.size <= 256 * 1024) };
+      info = { size: st.size, ctx: turn?.ctx ?? seen?.ctx ?? null, model: turn?.model ?? seen?.model ?? null, stamp: lastStamp(text), act: activity(text, st.size <= 256 * 1024) };
     }
     if (info) fresh.subs[f] = info;
     // Its last entry's own timestamp, not mtime: a copy or backup touches every file.
