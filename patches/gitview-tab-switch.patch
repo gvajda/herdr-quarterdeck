@@ -1,0 +1,47 @@
+--- a/mods/gitview/placement.js
++++ b/mods/gitview/placement.js
+@@ -84,10 +84,17 @@
+ //   whose panel is closed (the tab bar puts each space's panel back):
+ //   nothing closes, so coming back finds the diff as it was.
+ export function cycleEdge(was, now) {
+-  const next = { shown: now.shown, space: now.space };
++  const at = now.at ?? 0;
++  const tab = now.tab ?? null;
++  const tabAt = tab !== (was.tab ?? null) ? at : was.tabAt ?? null;
++  const next = { shown: now.shown, space: now.space, tab, tabAt };
+   if (now.shown === was.shown) return { was: next, edge: null };
+   if (now.shown) return { was: next, edge: "shown" };
+-  const moved = was.space !== null && now.space !== was.space;
++  // ponytail: local patch (Quarterdeck): tabs-graph remembers the panel per tab and hides it
++  // just after a tab switch; a hide within 1 s of one isn't the person closing it. A Files
++  // button press within 1 s of switching tabs is read as a switch too (rare).
++  const tabMoved = tabAt !== null && at - tabAt < 1000;
++  const moved = (was.space !== null && now.space !== was.space) || tabMoved;
+   return { was: next, edge: moved || !now.space ? null : { hidden: new Set(now.tabs), space: now.space } };
+ }
+ 
+@@ -100,6 +107,8 @@
+   constructor() {
+     this.shown = null; // not looked yet
+     this.space = null;
++    this.tab = null;
++    this.tabAt = null;
+     this.aside = false; // hidden for cmd-g's tab (stepAside)
+   }
+ 
+@@ -129,7 +138,7 @@
+   // This look's edge (cycleEdge).
+   look() {
+     const space = spaces().find((s) => s.active) ?? null;
+-    const { was, edge } = cycleEdge(this, { shown: PANEL.shown(), space: space?.id ?? null, tabs: space?.tabs.map((t) => t.id) ?? [] });
++    const { was, edge } = cycleEdge(this, { shown: PANEL.shown(), space: space?.id ?? null, tab: focused()?.tab ?? null, at: Date.now(), tabs: space?.tabs.map((t) => t.id) ?? [] });
+     Object.assign(this, was);
+     return edge;
+   }
+@@ -153,4 +162,4 @@
+ const tabPane = (p) => ({ tab: () => ownTab(p.space ?? null), closeButton: false, closesForHerdrNvim: false });
+ 
+ // `p`: the copy's props, from its init.
+-export const panePlacement = (p) => (p?.own ? tabPane(p) : panelPane(p ?? {}));
+\ No newline at end of file
++export const panePlacement = (p) => (p?.own ? tabPane(p) : panelPane(p ?? {}));

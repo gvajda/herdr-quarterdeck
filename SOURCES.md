@@ -16,7 +16,10 @@ changed ones say how in their NOTICE.
 
 `open-ref` (`cmd-o` and Cmd-click: open a path in Better Files) and the Claude Code mod `claude/path-keys` are written for this layout.
 
+[gitview](https://github.com/ChmaraX/herdr-gitview) (v0.6.0, `f69e71b`, MIT) is installed by its own
+installer, not copied here; `patches/gitview-tab-switch.patch` is the one change made to it.
+
 The layout also uses mods that ship with Herdr: `workspace-chrome`, `workspace-status`,
-`changes` and `pane`.
+and `pane` (and `changes` without gitview).
 
 The pace display follows [ClaudeUsageBar](https://github.com/Artzainnn/ClaudeUsageBar)'s.

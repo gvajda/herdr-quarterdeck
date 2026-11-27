@@ -31,6 +31,14 @@ that runs code or types into terminals, here or on another machine (`hc run`, `h
 - [`quota-axi`](https://github.com/kunchenguid/quota-axi) on every machine whose quota you
   want (`npm install -g quota-axi`, or `--prefix ~/.local` without root), signed in to Claude.
   On macOS run `quota-axi --allow-keychain-prompt` once and allow Keychain access.
+- [gitview](https://github.com/ChmaraX/herdr-gitview) in the Changes panel (stage, commit, diff
+  panes, review notes; macOS and Linux). Install it with its own installer while Quarterdeck is
+  shown: `curl -fsSL https://raw.githubusercontent.com/ChmaraX/herdr-gitview/main/install.sh | sh -s -- --app`.
+  It downloads a prebuilt binary and points the layout's `changes` block at gitview (already so
+  in `layouts/quarterdeck.json`). Then apply `patches/gitview-tab-switch.patch` from
+  `~/.config/herdr-app` (`patch -p1 < patches/gitview-tab-switch.patch`), again after each gitview upgrade:
+  without it, switching tabs closes gitview's diff pane, because `tabs-graph` remembers the
+  panel per tab. Without gitview, set the `changes` block back to `{ "mod": "changes" }`.
 - macOS notifications with Herdr's icon: `mods/better-alerts/helper/build.sh` (needs Xcode
   Command Line Tools). Linux uses `notify-send`.
 
@@ -51,6 +59,7 @@ that runs code or types into terminals, here or on another machine (`hc run`, `h
 - `better-files` opens a file a terminal asks for with the label `herdr.open`, from that terminal's machine.
 - `claude/path-keys` (a Claude Code mod, installed per machine) numbers the files a reply names; a digit in an empty prompt runs `hc label` on its own terminal to open one.
 - `better-files` writes a file only from its Edit mode or a ticked Markdown checkbox, and never over changes made since it read the file. A file on another machine is written there with `sh` (`base64`, `cmp`, `mv`).
+- `gitview` runs its `herdr-gitview` binary, which runs `git` (through `hc exec` on another machine), `hc`, `herdr-app` and an editor; it writes to a repo only when you stage, discard or commit, and keeps a local trace in `data/gitview/trace` (no file contents).
 - No mod sends anything over the network itself.
 
 ## Credits

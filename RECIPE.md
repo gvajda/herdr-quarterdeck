@@ -26,7 +26,8 @@ machine's CPU and RAM. Desktop notifications say when an agent needs you.
 - **Work area** (padding 8, gap 8): the active tab's panes as cards (radius 10, 1 px `border`,
   `accent` when focused, gap 8, framed even when alone) with Herdr's `pane` header (30 px, top).
   The right panel (368 px, 280–900, hidden until a panel button) stacks `better-files`,
-  `changes`, `git-graph` and `ray-notes`.
+  gitview (in the `changes` block, installed by gitview's installer; see README Needs),
+  `git-graph` and `ray-notes`.
 - **Status bar** (28 px): `workspace-status` (weight 1) and `system-load` (weight 2.4, min 120):
   a machine name in `accent` when remote, CPU, RAM and GPU with 12-sample graphs.
 
