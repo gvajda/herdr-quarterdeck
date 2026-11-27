@@ -5,6 +5,9 @@ Changes (2026-11-23): renamed; Claude Code sessions read from their transcripts 
 every machine (scan.cjs, views/claude.js) add context %, time since the last reply
 against the prompt cache, and the subagent tree (tree.js) under each agent; Claude
 terminals Herdr doesn't list as agents show too; spinners replaced by a pulsing dot;
+in the Spaces view, agents grouped by tab (2+ agents in a tab share a shaded band, tabs.js), the row
+or band of the focused pane's tab stays lit, a pinned agent moves its tab to the top of its space,
+and a status line counts agents by state and their subagents (views/tally.js) (2026-11-27);
 pinned spaces (pin beside the title) keep their slot after closing and can be dragged like
 open ones (order.js); closed ones go to Recently closed (views/places.js). Machine headers show Claude's weekly
 pace ("31% [W]") from the quota mod's shared "quota.pace:<machine>".

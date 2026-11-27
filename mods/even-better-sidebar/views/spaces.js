@@ -669,15 +669,18 @@ export class Spaces {
         : rows.flatMap(draw);
     }
     this.headerNames = [null, ...remote];
-    return this.headerNames.flatMap((m) => {
+    // A line between machines, so each header plainly owns what's under it.
+    const line = () => div().flex_none().h(1).mx(collapsed ? 2 : 8).my(5).bg(t.border);
+    return this.headerNames.flatMap((m, i) => {
       const head = this.machineHeader(m, t, collapsed);
-      if (this.folded.has(m)) return [head];
+      const top = i ? [line(), head] : [head];
+      if (this.folded.has(m)) return top;
       const mine = rows.filter((r) => (r.w.machine ?? null) === m);
-      if (mine.length) return [head, ...mine.flatMap(draw)];
+      if (mine.length) return [...top, ...mine.flatMap(draw)];
       const placeholder = this.machineLoading(m)
         ? this.loadingRow(m, t, collapsed)
         : this.newSpaceRow(m, t, collapsed);
-      return [head, placeholder];
+      return [...top, placeholder];
     });
   }
 
@@ -728,10 +731,13 @@ export class Spaces {
       .px(collapsed ? 2 : 8)
       .gap(7)
       .items_center()
+      // A section bar: a light band, so each machine plainly starts here.
+      .rounded(6)
+      .bg(t.hover)
       .text_size(TEXT.caption)
-      .text_color(t.dim)
+      .text_color(t.muted)
       .cursor_pointer()
-      .hover((s) => s.bg(t.hover))
+      .hover((s) => s.bg(t.selected))
       .on_click((_e, cx) => {
         if (!this.folded.delete(m)) this.folded.add(m);
         localStorage.setItem("machines.folded", JSON.stringify([...this.folded]));
@@ -748,7 +754,7 @@ export class Spaces {
           .flex_shrink(1)
           .children(
             (this.headerNames ?? [m]).map((n) => {
-              const row = div().truncate().child(n ?? "This computer");
+              const row = div().truncate().font_semibold().text_color(t.foreground).child((n ?? "This computer").toUpperCase());
               return n === m ? row : row.h(0).overflow_hidden();
             }),
           ),

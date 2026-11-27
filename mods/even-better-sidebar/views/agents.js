@@ -642,7 +642,8 @@ export class Agents {
       .w_full()
       .min_w(0)
       .rounded(8)
-      .when(a.focused, (el) => el.bg(t.selected))
+      // Under its space, the row the focused tab lights; in the flat list, the focused agent.
+      .when(view.nested ? view.lit?.agent === a.address : a.focused, (el) => el.bg(t.selected))
       .cursor_pointer()
       .hover((s) => s.bg(t.hover))
       .on_hover((on, cx) => {
@@ -757,6 +758,15 @@ export class Agents {
         .text_color(t.dim).tooltip(s.active ? "running for" : "ran for").child(ago(took)))
       // The same column as the main agent's circle (mx centers the smaller one under it).
       .child(div().w(9).flex().justify_center().child(stateCircle(t, s.state === "done" ? "finished" : s.state, 6)));
+  }
+
+  // The state an agent's circle shows, without hovering it: Claude's own (waiting on its
+  // subagents too), and a resting agent marked unread shows done.
+  shownState(a) {
+    const cs = sessionFor(a.address);
+    const s = cs ? claudeStatus(a, cs, build(cs.s.agents, cs.now)) : a.status;
+    if (s !== "idle" && s !== "done") return s;
+    return s === "done" || this.unread.has(a.address) ? "done" : "idle";
   }
 
   setUnread(address, on) {
@@ -902,7 +912,7 @@ export class Agents {
     const namesSpace = !view.nested;
     const name = this.rowName(a, label);
     const prog = a.program?.name;
-    const idle = a.status === "idle" && !a.focused;
+    const idle = a.status === "idle" && !(view.nested ? view.lit?.agent === a.address : a.focused);
     return h_flex()
       .flex_1()
       .min_w(0)
@@ -963,7 +973,7 @@ export class Agents {
       .text_color(t.dim)
       .cursor_pointer()
       .hover((s) => s.bg(t.hover).text_color(t.foreground))
-      .tooltip(pinned ? "Unpin" : "Pin to the top")
+      .tooltip(pinned ? "Unpin" : "Pin to the top of its space")
       .on_click((_e, cx) => {
         cx.stop_propagation();
         this.setPins(pinned ? this.pins.filter((p) => p !== a.address) : [...this.pins, a.address]);

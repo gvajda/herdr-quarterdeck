@@ -1,14 +1,25 @@
 // Spaces and agents in one block. Combined (the default): tabs for Spaces, with
 // each space's tabs and agents under it, and Agents. With `combined: false` in the settings: the
 // two lists one above the other, as two blocks of this mod would draw them.
+import { div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { focused, theme, setAgentOrder } from "herdr";
+import { focused, spaces, theme, setAgentOrder } from "herdr";
+import { groupTabs, litFor } from "../tabs.js";
 import { allAgents } from "./claude.js";
 import { Spaces } from "./spaces.js";
 import { Agents } from "./agents.js";
 import { TEXT, Badge, Rail } from "./ui.js";
+import { statusTally } from "./tally.js";
 
 const TABS = ["spaces", "agents"];
+
+// A theme color with its alpha scaled by k (#rrggbb counts as opaque).
+const fade = (c, k) => {
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(c ?? "");
+  if (!m) return c;
+  const a = Math.round((m[2] ? parseInt(m[2], 16) : 255) * k);
+  return `#${m[1]}${a.toString(16).padStart(2, "0")}`;
+};
 
 export class Lists {
   init(props, cx) {
@@ -53,41 +64,50 @@ export class Lists {
 
     const view = this.agents.readView();
     root.child(this.tabBar(t, view));
+    root.child(statusTally(this.agents, t));
     if (this.tab !== "spaces") return root.child(this.agents.render({ view, heading: false }));
 
-    // Spaces, each with its tabs and agents beneath in tab order, so rows don't move as
-    // their state changes; next-agent keys follow that order.
-    const nested = { ...view, sort: { id: "grouped" }, byPriority: false, nested: true };
-    const order = [];
+    // Spaces, each with its agents beneath grouped by tab: pinned tabs first, then in tab
+    // order, so rows don't move as their state changes; next-agent keys follow that order.
     const all = allAgents();
-    // Pinned agents go above every space, in the Agents tab's Pinned group.
-    const pinned = view.groups.find((g) => g.id === "pinned");
-    const pins = pinned?.members.map((a) => a.address) ?? [];
-    order.push(...pins);
-    this.spaces.above = () => (pinned ? this.agents.groupRows(pinned, 0, view, t) : []);
+    const pins = this.agents.pins;
+    // What the focused pane lights: its agent, its tab's lone agent, or its tab's band.
+    const f = focused();
+    const shownSpace = spaces().find((s) => s.active);
+    const lit = shownSpace && f ? litFor({ tab: f.tab, pane: f.pane }, groupTabs(shownSpace.tabs, all, pins)) : null;
+    const nested = { ...view, sort: { id: "grouped" }, byPriority: false, nested: true, lit };
+    const order = [];
     const nest = (lines, row) => h_flex().children(lines.map((l) => Rail(l))).child(row.flex_1().min_w(0));
     // A space's agents hang from its line; a main space's worktrees come after them,
     // so its line carries on, and a worktree's own agents sit one step further in.
     // Only agents show under a space; tabs with none (plain terminals) don't.
-    const shownTab = focused()?.tab;
-    const plain = (tab) => !all.some((a) => a.tab === tab.id);
+    // A tab with several agents is one branch: its rows on a shaded band, no room taken.
     this.spaces.under = ({ w, tree, kids }) => {
-      const items = w.tabs.flatMap((tab) =>
-        all.filter((a) => a.tab === tab.id && !pins.includes(a.address)).map((a) => ({ a })),
-      );
-      order.push(...items.filter((x) => x.a).map((x) => x.a.address));
+      const groups = groupTabs(w.tabs, all, pins);
+      order.push(...groups.flatMap((g) => g.agents.map((a) => a.address)));
       const before = tree ? [tree.startsWith("└") ? "" : "│"] : [];
-      return items.flatMap((x, i) => {
-        const last = i === items.length - 1 && !kids;
-        const [row, ...subs] = x.a
-          ? this.agents.agentWithSubs(x.a, i, nested, t)
-          : [this.agents.tabRow(w, x.tab, x.tab.id === shownTab, t)];
-        return [nest([...before, last ? "└" : "├"], row), ...subs.map((s) => nest([...before, last ? "" : "│"], s))];
+      const firstLoose = groups.some((g) => g.pinned) ? groups.findIndex((g) => !g.pinned) : -1;
+      return groups.flatMap((g, gi) => {
+        const last = gi === groups.length - 1 && !kids;
+        const rows = g.agents.flatMap((a, i) => this.agents.agentWithSubs(a, i, nested, t));
+        const out = [];
+        // Pinned tabs, then a thin line, then the rest.
+        if (gi === firstLoose)
+          out.push(nest([...before, "│"], h_flex().h(9).px(8).items_center().child(div().h(1).flex_1().bg(t.border))));
+        if (g.agents.length === 1) {
+          const [row, ...subs] = rows;
+          out.push(nest([...before, last ? "└" : "├"], row), ...subs.map((s) => nest([...before, last ? "" : "│"], s)));
+        } else {
+          const on = lit?.tab === g.tab;
+          // At rest fainter than a hover; under a lit agent, a hover; lit itself, like a lit row.
+          const shade = on ? (lit.band === "full" ? t.selected : t.hover) : fade(t.hover, 0.6);
+          out.push(nest([...before, last ? "└" : "├"], v_flex().rounded(8).bg(shade).children(rows)));
+        }
+        return out;
       });
     };
-    // One row lit: a space whose focused agent or tab shows beneath it leaves it to that row.
-    this.spaces.quiet = (w) =>
-      all.some((a) => a.space === w.id && a.focused) || w.tabs.some((tab) => tab.id === shownTab && plain(tab));
+    // One row lit: a space whose focused tab shows beneath it leaves it to that row or band.
+    this.spaces.quiet = (w) => lit !== null && w.tabs.some((tab) => tab.id === lit.tab);
     const body = this.spaces.body(t, false);
     setAgentOrder(order);
     return root.child(body);
