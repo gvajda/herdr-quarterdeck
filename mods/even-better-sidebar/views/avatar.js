@@ -27,16 +27,30 @@ export const ICON_GROUPS = [ { "name": "Dev", "icon": "code", "items": [ "code",
 export const SPACE_ICONS = ICON_GROUPS.flatMap((g) => g.items);
 
 export const fillOf = (color, t) => (color.startsWith("#") ? color : (AVATAR_COLORS[color] ?? t[color]));
+// The avatar's ink: white, or a dark one on a bright fill (amber, yellow, white, pastels).
+// WCAG relative luminance; 0.4 keeps white on the palette's mid colours.
+export function inkOn(fill) {
+  const m = /^#([0-9a-f]{6})/i.exec(fill ?? "");
+  if (!m) return "#ffffff";
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const c = parseInt(m[1].slice(i, i + 2), 16) / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? "#000000bf" : "#ffffff";
+}
+
 export const lookOf = (id) => (shared("space.icons") ?? {})[id] ?? null;
 export const colorOf = (id) => (shared("space.colors") ?? {})[id] ?? "ansi6";
 
 // `style`: a closed place's own colour and look, its space id being gone.
 export function spaceAvatar(w, t, size = 18, style = { color: colorOf(w.id), look: lookOf(w.id) }) {
   const look = style.look;
-  const box = h_flex().size(size).flex_none().rounded(size * 0.28).bg(fillOf(style.color ?? "ansi6", t))
+  const fill = fillOf(style.color ?? "ansi6", t);
+  const ink = inkOn(fill);
+  const box = h_flex().size(size).flex_none().rounded(size * 0.28).bg(fill)
     .items_center().justify_center().overflow_hidden();
-  if (look?.icon) return box.child(svg(`mods/even-better-sidebar/icons/space/${look.icon}.svg`).size(size * 0.66).text_color("#ffffff"));
+  if (look?.icon) return box.child(svg(`mods/even-better-sidebar/icons/space/${look.icon}.svg`).size(size * 0.66).text_color(ink));
   if (look?.emoji) return box.text_size(size * 0.62).child(look.emoji);
-  return box.text_size(size === 18 ? TEXT.avatar : size * 0.58).font_bold().text_color("#ffffff")
+  return box.text_size(size === 18 ? TEXT.avatar : size * 0.58).font_bold().text_color(ink)
     .child([...w.name][0]?.toUpperCase() ?? "?");
 }
