@@ -14,13 +14,13 @@
 //   views/keys.js         the tree from the keyboard
 // files/model.js says what the data means; views/ui.js holds every look but the token
 // colours: syntax.js colours the file view's code, and Better Changes has the same file.
-import { View } from "gpui-kit";
+import { View, div } from "gpui-kit";
 import { InputState, ScrollHandle, TextareaState } from "gpui-base";
 import { nextCommand, props, setShared, shared, spaces, terminals } from "herdr";
 import { loadSettings, duration } from "./settings.js";
 import { followFileIcons } from "./files/file-icons.js";
 import { readMethods } from "./files/reads.js";
-import { openMethods } from "./actions/open.js";
+import { liveViewerIds, openMethods } from "./actions/open.js";
 import { outsideMethods } from "./actions/outside.js";
 import { agentMethods } from "./actions/agents.js";
 import { menuMethods } from "./actions/menus.js";
@@ -43,6 +43,7 @@ class BetterFiles extends View {
       this.menuSpace = spaces().find((s) => s.active)?.id;
       return;
     }
+    if (this.mode === "opener") return this.initOpener(cx);
     this.menuFocus = cx.focus_handle();
     // Better Tabs draws this on a file's tab.
     setShared("mod-icons", {
@@ -56,6 +57,7 @@ class BetterFiles extends View {
 
   initViewer(p, cx) {
     this.viewerId = p.viewer;
+    liveViewerIds.add(this.viewerId);
     this.viewerSpace = p.space;
     this.viewerFile = p.file;
     this.gutterOn = true;
@@ -135,11 +137,36 @@ class BetterFiles extends View {
     });
   }
 
+  // A copy with no view, floating in the layout so it runs from the start, that opens the files
+  // asked for from outside: open-ref's Cmd-click and cmd-o, and Claude's herdr.open labels. The
+  // sidebar used to do this, so nothing opened until the Files panel had been shown once.
+  initOpener(cx) {
+    this.startedAt = Date.now();
+    this.openSplit = DEFAULT_SETTINGS.open !== "tab";
+    cx.timer.every(SYNC_MS, (cx) => this.takeRequests(cx));
+    cx.spawn(async () => {
+      const { settings } = await loadSettings("better-files", DEFAULT_SETTINGS);
+      this.openSplit = settings.open !== "tab";
+    });
+  }
+
+  takeRequests(cx) {
+    this.pruneViewers();
+    // A file asked for by open-ref (cmd-o on a selected path, Cmd-click), opened like a click in the tree.
+    const request = shared("better-files.open-request");
+    if (request?.file && request.at > this.startedAt) {
+      setShared("better-files.open-request", null);
+      this.openFile(request.file, cx);
+    }
+    this.followOpenLabels(cx);
+  }
+
   // A closing tab takes its copies of images with it, and any copy still being made when it
   // closes goes as soon as it's done. Pictures from the web stay: every tab shares them, and
   // they're downloaded again after a day.
   async close() {
     this.closed = true;
+    if (this.viewerId) liveViewerIds.delete(this.viewerId);
     // An edit still waiting to be saved is saved now, unless the file changed under it.
     if (this.edit && !this.conflict && this.edit.value() !== this.base)
       await this.saveText(this.file, this.edit.value(), this.base).catch(() => {});
@@ -157,15 +184,7 @@ class BetterFiles extends View {
         this.findNewAgents(this.on, cx);
       }
     }
-    this.pruneViewers();
     this.syncCompose(cx);
-    // A file asked for by open-ref (cmd-o on a selected path), opened like a click in the tree.
-    const request = shared("better-files.open-request");
-    if (request?.file && request.at > this.startedAt) {
-      setShared("better-files.open-request", null);
-      this.openFile(request.file, cx);
-    }
-    this.followOpenLabels(cx);
   }
 
   // A program in a terminal asks for a file by labelling its own terminal
@@ -192,6 +211,7 @@ class BetterFiles extends View {
   }
 
   render() {
+    if (this.mode === "opener") return div();
     if (this.mode === "menu") return this.menuView();
     if (this.mode === "viewer") return this.viewerView();
     return this.sidebarView();

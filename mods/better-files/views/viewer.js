@@ -969,6 +969,23 @@ export const viewerMethods = {
       .id("viewer-actions")
       .gap(6)
       .items_center()
+      .when(markdown && this.text !== undefined, (el) =>
+        el.child(
+          TextButton({
+            id: "viewer-copy-text",
+            label: this.copiedText ? "Copied" : "Copy text",
+            onClick: (cx) => {
+              cx.write_to_clipboard(this.edit?.value() ?? this.text);
+              this.copiedText = true;
+              cx.timer.after(COPIED_MS, (cx) => {
+                this.copiedText = false;
+                cx.notify();
+              });
+              cx.notify();
+            },
+          }),
+        ),
+      )
       .when(markdown, (el) =>
         el.child(
           h_flex()

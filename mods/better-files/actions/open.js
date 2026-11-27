@@ -10,6 +10,11 @@ const PRUNE_AFTER_MS = 15000;
 
 export const viewerEntries = () => shared(VIEWERS) ?? {};
 
+// Viewer copies running now. The registry outlives a closed pane while another viewer stays in
+// its tab, so "already open here" also asks this.
+// ponytail: module state, gone on reload until the copies start again; worst case a second pane.
+export const liveViewerIds = new Set();
+
 export const openMethods = {
   setViewer(id, change) {
     const entries = viewerEntries();
@@ -86,7 +91,7 @@ export const openMethods = {
       // Each file gets its own viewer pane: the first splits in beside the terminal, later
       // ones stack below the last viewer. A file already open in this tab isn't opened twice.
       const tab = focused()?.tab;
-      if (viewers.some(([, entry]) => entry.tab === tab && entry.file?.path === file.path)) return cx?.notify();
+      if (viewers.some(([id, entry]) => liveViewerIds.has(id) && entry.tab === tab && entry.file?.path === file.path)) return cx?.notify();
       const last = panes().filter((p) => p.tab === tab && p.mod === "better-files").at(-1);
       this.newViewer(file, space, false, last ? { direction: "down", pane: last.pane } : { direction: "right" });
       cx?.notify();

@@ -208,6 +208,17 @@
   },
   "floating": [
     {
+      "id": "better-files-opener",
+      "content": {
+        "mod": "better-files",
+        "props": {
+          "mode": "opener"
+        }
+      },
+      "edge": "bottom",
+      "align": "start"
+    },
+    {
       "id": "better-alerts",
       "content": {
         "mod": "better-alerts"
