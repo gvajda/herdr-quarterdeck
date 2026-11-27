@@ -68,16 +68,17 @@ export default class Tabs extends View {
     run(e.delta.y > 0 ? "tab.prev" : "tab.next");
   }
 
-  // The side panel is remembered per space: switching shows that space's choice
-  // (closed if it never had one), and opening or closing it records it.
-  syncPanel(space, panel, body, enabled) {
-    if (!space || !panel) return;
+  // The side panel is remembered per tab, like its splits: switching tabs (or
+  // spaces) shows that tab's choice (closed if it never had one), and opening
+  // or closing it records it.
+  syncPanel(tab, panel, body, enabled) {
+    if (!tab || !panel) return;
     const now = panel.hidden ? null : body?.active ?? null;
-    if (space.id !== this.space) {
-      const first = this.space === undefined;
-      this.space = space.id; this.pending = null;
-      if (!(first && !(space.id in this.panels))) {
-        const stored = this.panels[space.id] ?? null, want = enabled.includes(stored) ? stored : null;
+    if (tab.id !== this.tab) {
+      const first = this.tab === undefined;
+      this.tab = tab.id; this.pending = null;
+      if (!(first && !(tab.id in this.panels))) {
+        const stored = this.panels[tab.id] ?? null, want = enabled.includes(stored) ? stored : null;
         if (want !== now) {
           this.pending = { want, until: Date.now() + 1000 };
           if (want) { run("layout.select", { stack: "panel-body", child: want }); run("layout.show", { id: "panel" }); }
@@ -91,8 +92,11 @@ export default class Tabs extends View {
       if (this.pending.want !== now && Date.now() < this.pending.until) return;
       this.pending = null;
     }
-    if (this.panels[space.id] === now) return;
-    this.panels[space.id] = now;
+    if (this.panels[tab.id] === now) return;
+    // Forget closed tabs (and the old per-space entries) so the record stays small.
+    const live = new Set(spaces().flatMap((s) => s.tabs.map((x) => x.id)));
+    for (const id of Object.keys(this.panels)) if (!live.has(id)) delete this.panels[id];
+    this.panels[tab.id] = now;
     localStorage.setItem("panels", JSON.stringify(this.panels));
   }
 
@@ -139,7 +143,7 @@ export default class Tabs extends View {
       : 10;
     const panel = find(root, "panel"), body = find(root, "panel-body");
     const enabled = [...(shared("workspace.panels") ?? ["files", "changes"]), "graph", "notes"];
-    this.syncPanel(space, panel, body, enabled);
+    this.syncPanel(shown[active], panel, body, enabled);
     const panelButton = (id, label, icon) => {
       const on = panel && !panel.hidden && body?.active === id;
       return h_flex().id(`panel-${id}`).h(26).px(8).gap(5).flex_none().items_center().rounded(6)
