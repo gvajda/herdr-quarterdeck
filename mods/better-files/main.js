@@ -15,7 +15,7 @@
 // files/model.js says what the data means; views/ui.js holds every look but the token
 // colours: syntax.js colours the file view's code, and Better Changes has the same file.
 import { View, div } from "gpui-kit";
-import { InputState, ScrollHandle, TextareaState } from "gpui-base";
+import { InputState, ScrollHandle, TextareaState, VirtualListScrollHandle } from "gpui-base";
 import { nextCommand, props, setShared, shared, spaces, terminals } from "herdr";
 import { loadSettings, duration } from "./settings.js";
 import { followFileIcons } from "./files/file-icons.js";
@@ -30,8 +30,9 @@ import { savedDotfiles, toolMethods } from "./views/tools.js";
 import { keyMethods } from "./views/keys.js";
 import { viewerMethods } from "./views/viewer.js";
 import { contextMenuMethods } from "./views/context-menu.js";
+import { findMethods } from "./views/find.js";
 
-const DEFAULT_SETTINGS = { refresh: { tree: "10s", file: "2s" }, editors: [], gutter: true, markdown: "preview", open: "split" };
+const DEFAULT_SETTINGS = { refresh: { tree: "10s", file: "2s" }, editors: [], gutter: true, markdown: "preview", open: "split", rainbow: { brackets: true, indent: true, indentOpacity: 22 } };
 const SYNC_MS = 300;
 
 class BetterFiles extends View {
@@ -62,15 +63,23 @@ class BetterFiles extends View {
     this.viewerFile = p.file;
     this.gutterOn = true;
     this.markdownDefault = DEFAULT_SETTINGS.markdown;
+    this.rainbowOn = DEFAULT_SETTINGS.rainbow;
     this.hunks = [];
     this.openHunks = new Set();
     // The preview's position, so an `#anchor` link can scroll it. A handle must be made here.
     this.previewScroll = ScrollHandle.new();
+    this.linesScroll = VirtualListScrollHandle.new();
+    this.initFind(cx);
     this.syncViewer(cx);
     cx.timer.every(SYNC_MS, (cx) => this.syncViewer(cx));
     cx.spawn(async (cx) => {
       const { settings } = await loadSettings("better-files", DEFAULT_SETTINGS);
       this.markdownDefault = settings.markdown === "code" ? "code" : "preview";
+      if (JSON.stringify(settings.rainbow) !== JSON.stringify(this.rainbowOn)) {
+        this.rainbowOn = settings.rainbow;
+        this.runsFor = null; // Colour the lines and code blocks again.
+        this.blocksOf = null;
+      }
       cx.notify();
       // Folding can't change once a view is made, so turning the gutter off starts a new one.
       if (settings.gutter === false) {
@@ -231,6 +240,7 @@ Object.assign(
   keyMethods,
   viewerMethods,
   contextMenuMethods,
+  findMethods,
 );
 
 export default BetterFiles;

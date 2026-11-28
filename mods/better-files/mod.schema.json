@@ -113,6 +113,33 @@
             "code"
           ],
           "default": "preview"
+        },
+        "rainbow": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Colours by nesting in the file view's code and the preview's code blocks (not in Edit mode or with Changed lines off). Not in Markdown or plain text.",
+          "properties": {
+            "brackets": {
+              "title": "Rainbow brackets",
+              "description": "Colour (), [] and {} by depth, skipping ones in strings and comments. A bracket with no partner, or closing the wrong kind, is marked red.",
+              "type": "boolean",
+              "default": true
+            },
+            "indent": {
+              "title": "Rainbow indent",
+              "description": "Tint each indent step by depth, with the file's own step (2, 4, ...). A line off that step is marked red.",
+              "type": "boolean",
+              "default": true
+            },
+            "indentOpacity": {
+              "title": "Rainbow indent strength",
+              "description": "How strong the indent tints are, in percent. Higher shows the steps more clearly.",
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "default": 22
+            }
+          }
         }
       }
     }

@@ -26,6 +26,7 @@ import { BUSY, pickCopyImage, pickRemoteWrite, pickRm } from "../files/shell.js"
 import { editorId, foundEditors } from "../actions/outside.js";
 import { fileIcon, isLight } from "../files/file-icons.js";
 import { TEXT, FileIcon, IconButton, Markdown, Message, MenuButton, TextButton, codeFont, codeSize } from "./ui.js";
+import { codeLike, markRuns, rainbowRuns, runPaint } from "./rainbow.js";
 
 const CHAR_WIDTH = 0.62; // Of the code font's size, to size the sideways scroll.
 const LINE_COLUMNS = 6; // The number column and a margin, in the same units.
@@ -191,7 +192,7 @@ export const viewerMethods = {
 
   newCode(file, value, editable = false) {
     const t = theme();
-    return EditorState.new({
+    const state = EditorState.new({
       language: languageOf(file.path),
       readonly: !editable,
       soft_wrap: editable && isMarkdown(file.path),
@@ -211,6 +212,11 @@ export const viewerMethods = {
         "string.escape": t.ansi6,
       },
     });
+    // Which copy a Cmd-F means (find.js hasKeyboard).
+    const flag = editable ? "editFocused" : "codeFocused";
+    state.on("focus", () => (this[flag] = true));
+    state.on("blur", () => (this[flag] = false));
+    return state;
   },
 
   // What the pane's header row says, the same row a diff uses: file, folder, and whether
@@ -259,6 +265,7 @@ export const viewerMethods = {
     const sized = rows.some((row) => row.type === "removed")
       ? rows.map((row) => (row.type === "removed" ? REMOVED_ROW : height))
       : height;
+    this.rowsShown = rows; // For find.js to scroll to a match's row.
     const listId = `viewer-lines-${this.viewerId}-${this.file.path}`;
     const list = v_virtual_list(
       listId,
@@ -269,6 +276,7 @@ export const viewerMethods = {
     )
       // A handler per list, not per row: Herdr's virtual lists allow no handlers in a row.
       .on_item_click((key, cx) => this.toggleChange(rows.find((row) => row.key === key), cx))
+      .track_scroll(this.linesScroll)
       .size_full();
     const widest = lines.reduce((most, line) => Math.max(most, line.length), 0);
     return div()
@@ -323,6 +331,7 @@ export const viewerMethods = {
       if (lines.length <= WHOLE_FILE_LINES) {
         try {
           runs = highlightLines(lines, lexerLanguage(this.file.path));
+          if (codeLike(lexerLanguage(this.file.path))) runs = rainbowRuns(runs, lines, this.rainbowOn);
         } catch {}
       }
       this.runs = runs;
@@ -362,7 +371,8 @@ export const viewerMethods = {
         ? { added: t.ansi2, changed: open ? t.ansi2 : t.ansi3 }[row.hunk.kind]
         : null;
     const SYNTAX = syntaxColors(t);
-    const runs = old ? [{ text: row.text, kind: "old" }] : this.rowRuns(row, lineRuns);
+    const light = isLight(t.background);
+    const runs = old ? [{ text: row.text, kind: "old" }] : markRuns(this.rowRuns(row, lineRuns), this.findHits(`l${row.number}`), (h) => this.findColor(h));
     return h_flex()
       .id(`viewer-${row.key}`)
       .h(rowHeight())
@@ -393,13 +403,15 @@ export const viewerMethods = {
           .min_w(0)
           .whitespace_nowrap()
           .children(
-            runs.map((run) =>
-              div()
+            runs.map((run) => {
+              const paint = runPaint(run, t, run.kind === "old" ? t.ansi1 : (SYNTAX[run.kind] ?? t.foreground), light, this.rainbowOn.indentOpacity);
+              return div()
                 .flex_none()
                 .whitespace_nowrap()
-                .text_color(run.kind === "old" ? t.ansi1 : (SYNTAX[run.kind] ?? t.foreground))
-                .child(run.text || " "),
-            ),
+                .text_color(paint.fg)
+                .when(Boolean(paint.bg), (el) => el.bg(paint.bg))
+                .child(run.text || " ");
+            }),
           ),
       );
   },
@@ -642,7 +654,7 @@ export const viewerMethods = {
                 .flex_1()
                 .min_w(0)
                 .when(item.checked, (el) => el.text_color(t.muted).line_through())
-                .child(Markdown(`viewer-task-md-${this.viewerId}-${item.line}`, item.text).on_link_click((url, cx) => this.followLink(url, cx))),
+                .child(this.findMarked(Markdown(`viewer-task-md-${this.viewerId}-${item.line}`, item.text), `b${i}t${item.line}`).on_link_click((url, cx) => this.followLink(url, cx))),
             ),
         ),
       );
@@ -848,7 +860,8 @@ export const viewerMethods = {
   previewCode(block, i) {
     const t = theme();
     const SYNTAX = syntaxColors(t);
-    block.runs ??= codeRuns(block);
+    const light = isLight(t.background);
+    block.runs ??= codeLike(fenceLanguage(block.lang)) ? rainbowRuns(codeRuns(block), block.text.split("\n"), this.rainbowOn) : codeRuns(block);
     const widest = block.text.split("\n").reduce((n, line) => Math.max(n, line.length), 0);
     const copied = this.copiedCode === i;
     return v_flex()
@@ -900,24 +913,33 @@ export const viewerMethods = {
               .font_family(codeFont())
               .text_size(codeSize())
               .children(
-                block.runs.map((runs) =>
-                  h_flex()
+                block.runs.map((lineRuns, l) => {
+                  const runs = markRuns(lineRuns, this.findHits(`b${i}l${l}`), (h) => this.findColor(h));
+                  return h_flex()
                     .h(rowHeight())
                     .items_center()
                     .whitespace_nowrap()
                     .children(
-                      runs.map((run) =>
-                        div()
+                      runs.map((run) => {
+                        const paint = runPaint(run, t, SYNTAX[run.kind] ?? t.foreground, light, this.rainbowOn.indentOpacity);
+                        return div()
                           .flex_none()
                           .whitespace_nowrap()
-                          .text_color(SYNTAX[run.kind] ?? t.foreground)
-                          .child(run.text || " "),
-                      ),
-                    ),
-                ),
+                          .text_color(paint.fg)
+                          .when(Boolean(paint.bg), (el) => el.bg(paint.bg))
+                          .child(run.text || " ");
+                      }),
+                    );
+                }),
               ),
           ),
       );
+  },
+
+  // A Markdown piece with find's matches painted behind their text.
+  findMarked(md, at) {
+    for (const hit of this.findHits(at) ?? []) md.highlight_range(hit.start, hit.end, this.findColor(hit));
+    return md;
   },
 
   previewView() {
@@ -942,7 +964,7 @@ export const viewerMethods = {
                 ? this.previewCode(block, i)
                 : block.type === "tasks"
                   ? this.previewTasks(block, i)
-                : Markdown(`viewer-md-${this.viewerId}-${i}`, block.text).on_link_click((url, cx) => this.followLink(url, cx)),
+                : this.findMarked(Markdown(`viewer-md-${this.viewerId}-${i}`, block.text), `b${i}`).on_link_click((url, cx) => this.followLink(url, cx)),
         ),
       );
   },
@@ -1062,7 +1084,8 @@ export const viewerMethods = {
       .overflow_hidden()
       .bg(t.background)
       .text_color(t.foreground)
-      .text_size(TEXT.body);
+      .text_size(TEXT.body)
+      .track_focus(this.findFocus);
     if (!inHeader && head)
       root.child(
         h_flex()
@@ -1082,6 +1105,7 @@ export const viewerMethods = {
           .child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(head.detail))
           .child(this.viewerActions()),
       );
+    if (this.finding && !(this.file && isImage(this.file.path))) root.child(this.findBar());
     if (this.file && isImage(this.file.path)) root.child(this.imageView());
     else if (this.problem) root.child(Message(this.problem));
     else if (this.editing && this.edit) root.child(this.editView());

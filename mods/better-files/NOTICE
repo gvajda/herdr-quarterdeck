@@ -14,3 +14,7 @@ Changed in this copy:
 - actions/open.js: an "open" setting (split, default, or tab) for where a file opens; a closed
   viewer pane no longer counts as "already open" while another viewer stays in its tab.
 - views/viewer.js: a "Copy text" button on Markdown files copies the file's raw text.
+- views/find.js: Cmd-F (better-files.find, bound in keys.json) opens a find bar in a viewer that
+  marks matches in the preview, the line view or the editor and steps through them.
+- views/rainbow.js: rainbow brackets and rainbow indent in the line view and the preview's code
+  blocks, each with a setting (settings.rainbow.brackets / .indent, on by default).

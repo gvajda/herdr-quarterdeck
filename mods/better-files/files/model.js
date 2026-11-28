@@ -198,7 +198,8 @@ export function markdownBlocks(text, folder) {
   let anchor = null;
   const flush = () => {
     if (lines.some((line) => line.trim() && !REFERENCE.test(line))) {
-      const block = { type: "text", text: lines.join("\n") + appendix };
+      // end: where the shown text stops and the reference definitions added for links begin.
+      const block = { type: "text", text: lines.join("\n") + appendix, end: lines.join("\n").length };
       if (anchor) block.anchor = anchor;
       blocks.push(block);
     }
@@ -234,7 +235,7 @@ export function markdownBlocks(text, folder) {
     if (task) {
       const joins = blocks.at(-1)?.type === "tasks" && lines.every((l) => !l.trim());
       flush();
-      const item = { line: index, checked: task[2] !== " ", depth: Math.floor(task[1].replace(/\t/g, "  ").length / 2), text: task[3] + appendix };
+      const item = { line: index, checked: task[2] !== " ", depth: Math.floor(task[1].replace(/\t/g, "  ").length / 2), text: task[3] + appendix, end: task[3].length };
       const last = blocks.at(-1);
       if (joins) last.items.push(item);
       else blocks.push({ type: "tasks", items: [item] });

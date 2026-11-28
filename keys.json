@@ -68,7 +68,8 @@
       }
     },
     "cmd-shift-g": "mod.open:gitview-sidebar",
-    "cmd-g": "mod.open:gitview-tab"
+    "cmd-g": "mod.open:gitview-tab",
+    "cmd-f": "better-files.find"
   },
   "terminal": {
     "cmd-f": "terminal.search",
